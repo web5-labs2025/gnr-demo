@@ -1,0 +1,7 @@
+[
+  {"type":"function","name":"balance","inputs":[],"outputs":[{"type":"uint256"}],"stateMutability":"view"},
+  {"type":"function","name":"DISTRIBUTOR_ROLE","inputs":[],"outputs":[{"type":"bytes32"}],"stateMutability":"view"},
+  {"type":"function","name":"hasRole","inputs":[{"name":"role","type":"bytes32"},{"name":"account","type":"address"}],"outputs":[{"type":"bool"}],"stateMutability":"view"},
+  {"type":"function","name":"grantRole","inputs":[{"name":"role","type":"bytes32"},{"name":"account","type":"address"}],"outputs":[],"stateMutability":"nonpayable"},
+  {"type":"function","name":"revokeRole","inputs":[{"name":"role","type":"bytes32"},{"name":"account","type":"address"}],"outputs":[],"stateMutability":"nonpayable"}
+]
