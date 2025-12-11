@@ -11,8 +11,9 @@ import { formatAmount } from "../utils/format";
 export default function UserPage({ provider, signer, address, saleAddress, gnrAddress, usdtAddress }: { provider: ethers.BrowserProvider | null; signer: ethers.Signer | null; address: string; saleAddress: string; gnrAddress: string; usdtAddress: string }) {
   const [buyAmt, setBuyAmt] = useState<string>("");
   const [stakeAmt, setStakeAmt] = useState<string>("");
-  const [stakeMonths, setStakeMonths] = useState<string>("3");
-  const [userClaimEnabled, setUserClaimEnabled] = useState<boolean>(false);
+  const [faucetUsdtAmt, setFaucetUsdtAmt] = useState<string>("");
+  const [faucetGnrAmt, setFaucetGnrAmt] = useState<string>("");
+  const [aprBP, setAprBP] = useState<number>(0);
   const [stakes, setStakes] = useState<any[]>([]);
   const [gnrBal, setGnrBal] = useState<string>("");
   const [usdtBal, setUsdtBal] = useState<string>("");
@@ -25,13 +26,13 @@ export default function UserPage({ provider, signer, address, saleAddress, gnrAd
     async function init() {
       if (!ready) return;
       const sale = new ethers.Contract(saleAddress, saleAbi, signer!);
-      const u = await sale.userClaimEnabled();
-      setUserClaimEnabled(Boolean(u));
+      const apr = await sale.aprBP();
+      setAprBP(Number(apr));
       const res = await sale.listUserStakes(address, 0, 100);
       const n = Number(res[0]);
       const items = [] as any[];
       for (let i = 0; i < n && i < res[1].length; i++) {
-        items.push({ id: res[1][i], amount: res[2][i], months: res[3][i], start: res[4][i], end: res[5][i], active: res[6][i], earlyExit: res[7][i], claimable: res[8][i] });
+        items.push({ id: res[1][i], amount: res[2][i], start: res[3][i], active: res[4][i], claimable: res[5][i] });
       }
       setStakes(items);
       const erc = new ethers.Contract(gnrAddress, erc20Abi, signer!);
@@ -47,6 +48,23 @@ export default function UserPage({ provider, signer, address, saleAddress, gnrAd
     }
     init();
   }, [ready, address, saleAddress]);
+  async function reload() {
+    if (!ready) return;
+    try {
+      const sale = new ethers.Contract(saleAddress, saleAbi, signer!);
+      const apr = await sale.aprBP(); setAprBP(Number(apr));
+      const res = await sale.listUserStakes(address, 0, 100);
+      const n = Number(res[0]); const items = [] as any[];
+      for (let i = 0; i < n && i < res[1].length; i++) { items.push({ id: res[1][i], amount: res[2][i], start: res[3][i], active: res[4][i], claimable: res[5][i] }); }
+      setStakes(items);
+      const erc = new ethers.Contract(gnrAddress, erc20Abi, signer!);
+      const decG = await erc.decimals(); setGnrDec(Number(decG));
+      const balG = await erc.balanceOf(address); setGnrBal(formatAmount(balG, Number(decG)));
+      const ercU = new ethers.Contract(usdtAddress, erc20Abi, signer!);
+      const decU = await ercU.decimals(); setUsdtDec(Number(decU));
+      const balU = await ercU.balanceOf(address); setUsdtBal(formatAmount(balU, Number(decU)));
+    } catch {}
+  }
   async function approveErc20(token: string, spender: string, amount: bigint) {
     if (!isValidAddress(token) || !isValidAddress(spender)) { message.error("地址未配置或无效"); throw new Error("invalid address"); }
     const c = new ethers.Contract(token, erc20Abi, signer!);
@@ -90,59 +108,76 @@ export default function UserPage({ provider, signer, address, saleAddress, gnrAd
     if (!ready || !stakeAmt) { message.warning("请连接钱包并输入金额"); return; }
     if (!isValidAddress(gnrAddress) || !isValidAddress(saleAddress)) { message.error("地址未配置或无效"); return; }
     const amt = parseAmount(stakeAmt);
-    const months = parseUint(stakeMonths);
-    if (!amt || !months || months <= 0) { message.error("输入无效"); return; }
+    if (!amt) { message.error("输入无效"); return; }
     try {
       const sale = new ethers.Contract(saleAddress, saleAbi, signer!);
-      const c = await sale.cycleParams(months); if (!Boolean(c.allowed)) { message.error("该质押周期未开放"); return; }
       const ke = await sale.kycEnabled(); if (ke) { const wl = await sale.whitelist(address); if (!wl) { message.error("需在白名单后才能质押"); return; } }
       const bl = await sale.blacklist(address); if (bl) { message.error("黑名单用户不可质押"); return; }
-      await approveErc20(gnrAddress, saleAddress, amt);
       const hide = message.loading({ content: "质押中...", duration: 0 });
-      const tx = await sale.stake(amt, months);
+      const tx = await sale.stake(amt);
       const r = await tx.wait();
       const url = await formatTxUrl(provider, tx.hash);
       hide();
       message.success(url ? <a href={url} target="_blank" rel="noreferrer">质押成功，查看交易</a> : "质押成功");
     } catch (e: any) { message.error(e?.message || "质押失败"); }
   }
-  async function onWithdraw(id: bigint) {
+  async function onCancel(id: bigint) {
     try {
       const sale = new ethers.Contract(saleAddress, saleAbi, signer!);
-      const hide = message.loading({ content: "提现中...", duration: 0 });
-      const tx = await sale.withdrawMature(id);
+      const hide = message.loading({ content: "取消中...", duration: 0 });
+      const tx = await sale.cancelStake(id);
       const r = await tx.wait();
       const url = await formatTxUrl(provider, tx.hash);
       hide();
-      message.success(url ? <a href={url} target="_blank" rel="noreferrer">提现成功，查看交易</a> : "提现成功");
-    } catch (e: any) { message.error(e?.message || "提现失败"); }
+      message.success(url ? <a href={url} target="_blank" rel="noreferrer">已取消质押，查看交易</a> : "已取消质押");
+    } catch (e: any) { message.error(e?.message || "取消失败"); }
   }
-  async function onEarlyExit(id: bigint) {
+  async function onFaucetUSDT() {
+    if (!ready || !faucetUsdtAmt) { message.warning("请连接钱包并输入USDT最小单位数量（6位精度）"); return; }
+    if (!isValidAddress(usdtAddress)) { message.error("USDT地址未配置或无效"); return; }
+    const amt = parseAmount(faucetUsdtAmt);
+    if (!amt) { message.error("金额无效，示例：1000000=1 USDT"); return; }
     try {
-      const sale = new ethers.Contract(saleAddress, saleAbi, signer!);
-      const hide = message.loading({ content: "早退中...", duration: 0 });
-      const tx = await sale.earlyExit(id);
+      const mockUsdtAbi = [{ inputs: [{ internalType: "address", name: "to", type: "address" }, { internalType: "uint256", name: "amount", type: "uint256" }], name: "mint", outputs: [], stateMutability: "nonpayable", type: "function" }];
+      const usdt = new ethers.Contract(usdtAddress, mockUsdtAbi, signer!);
+      const hide = message.loading({ content: "领取USDT中...", duration: 0 });
+      const tx = await usdt.mint(address, amt);
       const r = await tx.wait();
       const url = await formatTxUrl(provider, tx.hash);
       hide();
-      message.success(url ? <a href={url} target="_blank" rel="noreferrer">早退成功，查看交易</a> : "早退成功");
-    } catch (e: any) { message.error(e?.message || "早退失败"); }
+      message.success(url ? <a href={url} target="_blank" rel="noreferrer">领取USDT成功，查看交易</a> : "领取USDT成功");
+      await reload();
+    } catch (e: any) { message.error(e?.message || "领取USDT失败"); }
   }
-  async function onClaim(id: bigint) {
-    if (!userClaimEnabled) return;
+  async function onFaucetGNR() {
+    if (!ready || !faucetGnrAmt) { message.warning("请连接钱包并输入GNR最小单位数量（18位精度）"); return; }
+    if (!isValidAddress(saleAddress) || !isValidAddress(usdtAddress) || !isValidAddress(gnrAddress)) { message.error("地址未配置或无效"); return; }
+    const gnrWant = parseAmount(faucetGnrAmt);
+    if (!gnrWant) { message.error("金额无效，示例：1000000000000000000=1 GNR"); return; }
     try {
       const sale = new ethers.Contract(saleAddress, saleAbi, signer!);
-      const hide = message.loading({ content: "领取中...", duration: 0 });
-      const tx = await sale.userClaimRewards(id);
+      const sa = await sale.saleActive(); if (!sa) { message.error("购买未开启"); return; }
+      const ke = await sale.kycEnabled(); if (ke) { const wl = await sale.whitelist(address); if (!wl) { message.error("需在白名单后才能领取GNR"); return; } }
+      const bl = await sale.blacklist(address); if (bl) { message.error("黑名单用户不可领取"); return; }
+      const factor = 10n ** BigInt(gnrDec - usdtDec);
+      const needUsdt = (gnrWant + factor - 1n) / factor;
+      const inv = await sale.remainingInventory(); if (inv < gnrWant) { message.error("库存 GNR 不足"); return; }
+      const mockUsdtAbi = [{ inputs: [{ internalType: "address", name: "to", type: "address" }, { internalType: "uint256", name: "amount", type: "uint256" }], name: "mint", outputs: [], stateMutability: "nonpayable", type: "function" }];
+      const usdt = new ethers.Contract(usdtAddress, mockUsdtAbi, signer!);
+      await usdt.mint(address, needUsdt);
+      await approveErc20(usdtAddress, saleAddress, needUsdt);
+      const hide = message.loading({ content: "领取GNR中...", duration: 0 });
+      const tx = await sale.buy(needUsdt);
       const r = await tx.wait();
       const url = await formatTxUrl(provider, tx.hash);
       hide();
-      message.success(url ? <a href={url} target="_blank" rel="noreferrer">领取成功，查看交易</a> : "领取成功");
-    } catch (e: any) { message.error(e?.message || "领取失败"); }
+      message.success(url ? <a href={url} target="_blank" rel="noreferrer">领取GNR成功，查看交易</a> : "领取GNR成功");
+      await reload();
+    } catch (e: any) { message.error(e?.message || "领取GNR失败"); }
   }
   return (
     <div>
-      <Typography.Paragraph type="secondary">购买用 USDT 兑换 GNR；质押后可在到期提现或选择早退；领取利息需管理员开启用户领息开关。</Typography.Paragraph>
+      <Typography.Paragraph type="secondary">购买用 USDT 兑换 GNR；质押为锁定模型（余额可见但不可转），可随时取消；利息为固定 APR 线性累计，单位 GNR，仅用于展示与导出。</Typography.Paragraph>
       <Typography.Paragraph>我的余额 GNR: {gnrBal || "-"} ｜ USDT: {usdtBal || "-"}</Typography.Paragraph>
       <Divider />
       <Space>
@@ -150,25 +185,34 @@ export default function UserPage({ provider, signer, address, saleAddress, gnrAd
         <Button type="primary" onClick={onBuy}>购买</Button>
       </Space>
       <Space wrap style={{ marginTop: 8 }}>
-        <Tag color="blue">选择周期并输入金额进行质押</Tag>
+        <Tag color="blue">输入金额进行质押（APR {aprBP} / {(aprBP || 0) / 100}%）</Tag>
         <Input placeholder="GNR 数量" value={stakeAmt} onChange={(e) => setStakeAmt(e.target.value)} />
-        <Input placeholder="质押月数" value={stakeMonths} onChange={(e) => setStakeMonths(e.target.value)} />
         <Button type="primary" onClick={onStake}>质押</Button>
       </Space>
+      <Divider />
+      <Card size="small" title="测试代币领取">
+        <Typography.Paragraph type="secondary">USDT 为 6 位精度，示例：1000000 = 1 USDT；GNR 为 18 位精度，示例：1000000000000000000 = 1 GNR。</Typography.Paragraph>
+        <Space style={{ marginBottom: 8 }}>
+          <Input placeholder="USDT 最小单位数量（示例：1000000=1 USDT）" value={faucetUsdtAmt} onChange={(e) => setFaucetUsdtAmt(e.target.value)} />
+          <Button onClick={onFaucetUSDT}>领取 USDT</Button>
+        </Space>
+        <Space>
+          <Input placeholder="GNR 最小单位数量（示例：1000000000000000000=1 GNR）" value={faucetGnrAmt} onChange={(e) => setFaucetGnrAmt(e.target.value)} />
+          <Button onClick={onFaucetGNR}>领取 GNR</Button>
+        </Space>
+      </Card>
       <div style={{ marginTop: 12 }}>
         <Button onClick={() => {
-          const rows = [["id", "amount", "months", "start", "end", "active", "earlyExit", "claimable"], ...stakes.map((s) => [s.id.toString(), s.amount.toString(), s.months.toString(), s.start.toString(), s.end.toString(), s.active ? "true" : "false", s.earlyExit ? "true" : "false", s.claimable.toString()])];
+          const rows = [["id", "amount", "start", "active", "claimable_gnr"], ...stakes.map((s) => [s.id.toString(), s.amount.toString(), s.start.toString(), s.active ? "true" : "false", s.claimable.toString()])];
           exportCsv(`user-${address}.csv`, rows);
         }}>导出我的质押</Button>
         {stakes.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize).map((s) => (
           <Card key={s.id.toString()} size="small" style={{ marginBottom: 8 }}>
-            <div>编号 {s.id.toString()} 金额 {formatAmount(BigInt(s.amount.toString()), gnrDec)} 月数 {s.months.toString()}</div>
-            <div>到期 {s.end.toString()} 活跃 {s.active ? "是" : "否"} 早退 {s.earlyExit ? "是" : "否"}</div>
-            <div>可领利息 {formatAmount(BigInt(s.claimable.toString()), gnrDec)}</div>
+            <div>编号 {s.id.toString()} 金额 {formatAmount(BigInt(s.amount.toString()), gnrDec)}</div>
+            <div>开始 {s.start.toString()} 活跃 {s.active ? "是" : "否"}</div>
+            <div>可视利息(GNR) {formatAmount(BigInt(s.claimable.toString()), gnrDec)}</div>
             <Space style={{ marginTop: 4 }}>
-              <Button onClick={() => onWithdraw(s.id)}>到期提现</Button>
-              <Button onClick={() => onEarlyExit(s.id)}>早退</Button>
-              <Button disabled={!userClaimEnabled} onClick={() => onClaim(s.id)}>领取利息</Button>
+              <Button onClick={() => onCancel(s.id)}>取消质押</Button>
             </Space>
           </Card>
         ))}

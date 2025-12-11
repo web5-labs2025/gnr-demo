@@ -37,7 +37,8 @@ export async function networkName(provider) {
                                     id === 84532 ? "Base Sepolia" :
                                         id === 42161 ? "Arbitrum" :
                                             id === 421614 ? "Arbitrum Sepolia" :
-                                                `Chain ${id}`);
+                                                id === 31337 ? "Hardhat" :
+                                                    `Chain ${id}`);
     }
     catch {
         return "";
@@ -50,7 +51,8 @@ export async function switchNetwork(targetChainId) {
         56: { chainId: "0x38", chainName: "BSC", nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 }, rpcUrls: ["https://bsc-dataseed.binance.org"], blockExplorerUrls: ["https://bscscan.com"] },
         97: { chainId: "0x61", chainName: "BSC Testnet", nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 }, rpcUrls: ["https://data-seed-prebsc-1-s1.binance.org:8545"], blockExplorerUrls: ["https://testnet.bscscan.com"] },
         1: { chainId: "0x1", chainName: "Ethereum", nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 }, rpcUrls: ["https://rpc.ankr.com/eth"], blockExplorerUrls: ["https://etherscan.io"] },
-        11155111: { chainId: "0xaa36a7", chainName: "Sepolia", nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 }, rpcUrls: ["https://rpc.sepolia.org"], blockExplorerUrls: ["https://sepolia.etherscan.io"] }
+        11155111: { chainId: "0xaa36a7", chainName: "Sepolia", nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 }, rpcUrls: ["https://rpc.sepolia.org"], blockExplorerUrls: ["https://sepolia.etherscan.io"] },
+        31337: { chainId: "0x7a69", chainName: "Hardhat", nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 }, rpcUrls: ["http://localhost:8545"], blockExplorerUrls: [] }
     };
     try {
         await anyWindow.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: hexId }] });

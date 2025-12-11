@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { ethers } from "ethers";
-import { ConfigProvider, Layout, Typography, Row, Col, Divider, Card, Space, Button, message } from "antd";
+import { ConfigProvider, Layout, Typography, Row, Col, Divider, Card, Space, Button, message, Alert } from "antd";
 import Wallet from "./components/Wallet";
 import AddressConfig from "./components/AddressConfig";
 import Dashboard from "./components/Dashboard";
@@ -50,6 +50,8 @@ export default function App() {
   const [netName, setNetName] = useState<string>("");
   const [saleCodeOk, setSaleCodeOk] = useState<boolean>(true);
   const [switching, setSwitching] = useState<boolean>(false);
+  const targetChainIdEnv = Number((import.meta as any).env?.VITE_TARGET_CHAIN_ID || 0);
+  const [targetChainId, setTargetChainId] = useState<number>(targetChainIdEnv);
   React.useEffect(() => {
     async function checkNet() {
       const anyWindow: any = window as any;
@@ -81,8 +83,9 @@ export default function App() {
   async function handleSwitchNetwork() {
     try {
       setSwitching(true);
-      await switchNetwork(97);
-      message.success("已切换到 BSC 测试网");
+      const target = targetChainId && targetChainId > 0 ? targetChainId : 97;
+      await switchNetwork(target);
+      message.success(`已切换到目标网络 (${target})`);
     } catch (e: any) {
       message.error(e?.message || "切换网络失败");
     } finally {
@@ -97,14 +100,33 @@ export default function App() {
             <Typography.Title level={3} style={{ margin: 0 }}>GNR 合约演示</Typography.Title>
             <Space>
               <Typography.Text type="secondary">{netName ? `${netName}${chainId ? ` (${chainId})` : ""}` : "未识别网络"}</Typography.Text>
-              {!saleCodeOk && isValidAddress(saleAddress) && (
-                <Button danger loading={switching} onClick={handleSwitchNetwork}>切换到BSC测试网</Button>
+              {((targetChainId && chainId !== null && targetChainId !== chainId) || (!saleCodeOk && isValidAddress(saleAddress))) && (
+                <Button danger loading={switching} onClick={handleSwitchNetwork}>切换到目标网络</Button>
               )}
               <Wallet onConnected={(p, s, a) => { setProvider(p); setSigner(s); setAddress(a); }} />
             </Space>
           </div>
         </Layout.Header>
         <Layout.Content style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
+          {!saleCodeOk && (
+            <Alert
+              type="error"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message="Sale 合约在当前网络未部署或地址错误"
+              description={
+                <span>
+                  请检查地址配置或切换到目标网络。
+                  当前地址：{isValidAddress(saleAddress) ? saleAddress : "未配置"}
+                </span>
+              }
+            />
+          )}
+          {chainId === 31337 && (
+            <Alert type="warning" showIcon style={{ marginBottom: 16 }}
+              message="当前为本地 Hardhat 开发网络"
+              description="此网络账户与私钥仅用于本地开发，切勿用于正式网络或真实资产。" />
+          )}
           <Card style={{ marginBottom: 16 }} title="地址配置" extra={<Typography.Text type="secondary">从环境变量自动填充，可在此修改</Typography.Text>}>
             <AddressConfig saleAddress={saleAddress} vaultAddress={vaultAddress} gnrAddress={gnrAddress} usdtAddress={usdtAddress} onChange={(k, v) => {
               if (k === "sale") { setSaleAddress(v); localStorage.setItem("saleAddress", v); }

@@ -9,10 +9,8 @@ import { networkName } from "../utils/explorer";
 
 export default function Dashboard({ provider, saleAddress, gnrAddress }: { provider: ethers.BrowserProvider | null; saleAddress: string; gnrAddress: string }) {
   const [inventory, setInventory] = useState<string>("");
-  const [cycles, setCycles] = useState<number[]>([]);
-  const [params, setParams] = useState<Record<number, { aprBP: number; penaltyBP: number; allowed: boolean }>>({});
-  const [global, setGlobal] = useState<{ count: string; principal: string; claimable: string } | null>(null);
-  const [cycleSummaries, setCycleSummaries] = useState<Record<number, { count: string; principal: string; claimable: string }>>({});
+  const [aprBP, setAprBP] = useState<number>(0);
+  const [global, setGlobal] = useState<{ count: string; locked: string; claimableGnr: string } | null>(null);
   const [gnrSupply, setGnrSupply] = useState<string>("");
   const [gnrDecimals, setGnrDecimals] = useState<number>(18);
   const [saleActive, setSaleActive] = useState<boolean>(false);
@@ -34,20 +32,16 @@ export default function Dashboard({ provider, saleAddress, gnrAddress }: { provi
         setNetName(nn);
         if (!isValidAddress(saleAddress)) {
           setInventory("");
-          setCycles([]);
-          setParams({});
+          setAprBP(0);
           setGlobal(null);
-          setCycleSummaries({});
           message.warning("Sale 地址未配置或无效");
           return;
         }
         const saleCode = await rpc.getCode(saleAddress);
         if (!saleCode || saleCode === "0x") {
           setInventory("");
-          setCycles([]);
-          setParams({});
+          setAprBP(0);
           setGlobal(null);
-          setCycleSummaries({});
           message.error("Sale 合约在当前网络未部署或地址错误");
           return;
         }
@@ -64,22 +58,10 @@ export default function Dashboard({ provider, saleAddress, gnrAddress }: { provi
       setUserClaimEnabled(Boolean(ce));
       setAllowOnPause(Boolean(ap));
       setAllowWhenBlacklisted(Boolean(ab));
-      const cs: number[] = await sale.getAllowedCycles();
-      setCycles(cs);
-      const paramMap: Record<number, { aprBP: number; penaltyBP: number; allowed: boolean }> = {};
-      for (const m of cs) {
-        const c = await sale.cycleParams(m);
-        paramMap[m] = { aprBP: Number(c.aprBP), penaltyBP: Number(c.penaltyBP), allowed: Boolean(c.allowed) };
-      }
-      setParams(paramMap);
+      const apr = await sale.aprBP();
+      setAprBP(Number(apr));
       const g = await sale.summaryGlobal();
-      setGlobal({ count: g[0].toString(), principal: g[1].toString(), claimable: g[2].toString() });
-      const s: Record<number, { count: string; principal: string; claimable: string }> = {};
-      for (const m of cs) {
-        const r = await sale.summaryByCycle(m);
-        s[m] = { count: r[0].toString(), principal: r[1].toString(), claimable: r[2].toString() };
-      }
-      setCycleSummaries(s);
+      setGlobal({ count: g[0].toString(), locked: g[1].toString(), claimableGnr: g[2].toString() });
       if (isValidAddress(gnrAddress)) {
         const gnrCode = await rpc.getCode(gnrAddress);
         if (!gnrCode || gnrCode === "0x") {
@@ -112,31 +94,11 @@ export default function Dashboard({ provider, saleAddress, gnrAddress }: { provi
           <Descriptions.Item label="用户领息">{userClaimEnabled ? "开" : "关"}</Descriptions.Item>
           <Descriptions.Item label="暂停可提">{allowOnPause ? "是" : "否"}</Descriptions.Item>
           <Descriptions.Item label="黑名单可提">{allowWhenBlacklisted ? "是" : "否"}</Descriptions.Item>
-          <Descriptions.Item label="周期总数">{cycles.length}</Descriptions.Item>
-          <Descriptions.Item label="允许周期">{cycles.length ? cycles.join(", ") : "-"}</Descriptions.Item>
+          <Descriptions.Item label="APR(bps)">{aprBP} （{(aprBP || 0) / 100}%）</Descriptions.Item>
         </Descriptions>
       </Card>
-      <Card size="small" title={`周期面板（共 ${cycles.length} 个）`} style={{ marginBottom: 12 }}>
-        <Typography.Paragraph type="secondary">库存 GNR 为金库持有的可发放/售卖库存；下方展示所有允许周期及其 APR/罚金与汇总。</Typography.Paragraph>
-        <List
-          size="small"
-          dataSource={cycles}
-          renderItem={(m) => (
-            <List.Item>
-              <Space wrap>
-                <Tag color="blue">{m} 月</Tag>
-                <Tag>APR {params[m]?.aprBP} ( {(params[m]?.aprBP || 0) / 100}% )</Tag>
-                <Tag>罚金 {params[m]?.penaltyBP} ( {(params[m]?.penaltyBP || 0) / 100}% )</Tag>
-                <Typography.Text>质押数 {cycleSummaries[m]?.count || "-"}</Typography.Text>
-                <Typography.Text>本金 {cycleSummaries[m]?.principal ? formatAmount(BigInt(cycleSummaries[m].principal), gnrDecimals) : "-"}</Typography.Text>
-                <Typography.Text>可领利息 {cycleSummaries[m]?.claimable ? formatAmount(BigInt(cycleSummaries[m].claimable), gnrDecimals) : "-"}</Typography.Text>
-              </Space>
-            </List.Item>
-          )}
-        />
-      </Card>
       <Card size="small" style={{ marginTop: 12 }}>
-        <Typography.Text>汇总 质押数 {global?.count || "-"} 本金 {global?.principal ? formatAmount(BigInt(global.principal), gnrDecimals) : "-"} 可领利息 {global?.claimable ? formatAmount(BigInt(global.claimable), gnrDecimals) : "-"}</Typography.Text>
+        <Typography.Text>汇总 质押数 {global?.count || "-"} 总锁定 {global?.locked ? formatAmount(BigInt(global.locked), gnrDecimals) : "-"} 可视利息(GNR) {global?.claimableGnr ? formatAmount(BigInt(global.claimableGnr), gnrDecimals) : "-"}</Typography.Text>
       </Card>
     </div>
   );

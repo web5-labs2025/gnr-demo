@@ -1,7 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import React, { useMemo, useState } from "react";
 import { ethers } from "ethers";
-import { ConfigProvider, Layout, Typography, Row, Col, Card, Space, Button, message } from "antd";
+import { ConfigProvider, Layout, Typography, Row, Col, Card, Space, Button, message, Alert } from "antd";
 import Wallet from "./components/Wallet";
 import AddressConfig from "./components/AddressConfig";
 import Dashboard from "./components/Dashboard";
@@ -62,6 +62,8 @@ export default function App() {
     const [netName, setNetName] = useState("");
     const [saleCodeOk, setSaleCodeOk] = useState(true);
     const [switching, setSwitching] = useState(false);
+    const targetChainIdEnv = Number(import.meta.env?.VITE_TARGET_CHAIN_ID || 0);
+    const [targetChainId, setTargetChainId] = useState(targetChainIdEnv);
     React.useEffect(() => {
         async function checkNet() {
             const anyWindow = window;
@@ -95,8 +97,9 @@ export default function App() {
     async function handleSwitchNetwork() {
         try {
             setSwitching(true);
-            await switchNetwork(97);
-            message.success("已切换到 BSC 测试网");
+            const target = targetChainId && targetChainId > 0 ? targetChainId : 97;
+            await switchNetwork(target);
+            message.success(`已切换到目标网络 (${target})`);
         }
         catch (e) {
             message.error(e?.message || "切换网络失败");
@@ -105,7 +108,7 @@ export default function App() {
             setSwitching(false);
         }
     }
-    return (_jsx(ConfigProvider, { theme: { token: { colorPrimary: "#1677ff", borderRadius: 10, colorBgLayout: "#f6f8fb" } }, children: _jsxs(Layout, { style: { minHeight: "100vh" }, children: [_jsx(Layout.Header, { style: { background: "#fff", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }, children: _jsxs("div", { style: { maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }, children: [_jsx(Typography.Title, { level: 3, style: { margin: 0 }, children: "GNR \u5408\u7EA6\u6F14\u793A" }), _jsxs(Space, { children: [_jsx(Typography.Text, { type: "secondary", children: netName ? `${netName}${chainId ? ` (${chainId})` : ""}` : "未识别网络" }), !saleCodeOk && isValidAddress(saleAddress) && (_jsx(Button, { danger: true, loading: switching, onClick: handleSwitchNetwork, children: "\u5207\u6362\u5230BSC\u6D4B\u8BD5\u7F51" })), _jsx(Wallet, { onConnected: (p, s, a) => { setProvider(p); setSigner(s); setAddress(a); } })] })] }) }), _jsxs(Layout.Content, { style: { padding: 24, maxWidth: 1200, margin: "0 auto" }, children: [_jsx(Card, { style: { marginBottom: 16 }, title: "\u5730\u5740\u914D\u7F6E", extra: _jsx(Typography.Text, { type: "secondary", children: "\u4ECE\u73AF\u5883\u53D8\u91CF\u81EA\u52A8\u586B\u5145\uFF0C\u53EF\u5728\u6B64\u4FEE\u6539" }), children: _jsx(AddressConfig, { saleAddress: saleAddress, vaultAddress: vaultAddress, gnrAddress: gnrAddress, usdtAddress: usdtAddress, onChange: (k, v) => {
+    return (_jsx(ConfigProvider, { theme: { token: { colorPrimary: "#1677ff", borderRadius: 10, colorBgLayout: "#f6f8fb" } }, children: _jsxs(Layout, { style: { minHeight: "100vh" }, children: [_jsx(Layout.Header, { style: { background: "#fff", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }, children: _jsxs("div", { style: { maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }, children: [_jsx(Typography.Title, { level: 3, style: { margin: 0 }, children: "GNR \u5408\u7EA6\u6F14\u793A" }), _jsxs(Space, { children: [_jsx(Typography.Text, { type: "secondary", children: netName ? `${netName}${chainId ? ` (${chainId})` : ""}` : "未识别网络" }), ((targetChainId && chainId !== null && targetChainId !== chainId) || (!saleCodeOk && isValidAddress(saleAddress))) && (_jsx(Button, { danger: true, loading: switching, onClick: handleSwitchNetwork, children: "\u5207\u6362\u5230\u76EE\u6807\u7F51\u7EDC" })), _jsx(Wallet, { onConnected: (p, s, a) => { setProvider(p); setSigner(s); setAddress(a); } })] })] }) }), _jsxs(Layout.Content, { style: { padding: 24, maxWidth: 1200, margin: "0 auto" }, children: [chainId === 31337 && (_jsx(Alert, { type: "warning", showIcon: true, style: { marginBottom: 16 }, message: "\u5F53\u524D\u4E3A\u672C\u5730 Hardhat \u5F00\u53D1\u7F51\u7EDC", description: "\u6B64\u7F51\u7EDC\u8D26\u6237\u4E0E\u79C1\u94A5\u4EC5\u7528\u4E8E\u672C\u5730\u5F00\u53D1\uFF0C\u5207\u52FF\u7528\u4E8E\u6B63\u5F0F\u7F51\u7EDC\u6216\u771F\u5B9E\u8D44\u4EA7\u3002" })), _jsx(Card, { style: { marginBottom: 16 }, title: "\u5730\u5740\u914D\u7F6E", extra: _jsx(Typography.Text, { type: "secondary", children: "\u4ECE\u73AF\u5883\u53D8\u91CF\u81EA\u52A8\u586B\u5145\uFF0C\u53EF\u5728\u6B64\u4FEE\u6539" }), children: _jsx(AddressConfig, { saleAddress: saleAddress, vaultAddress: vaultAddress, gnrAddress: gnrAddress, usdtAddress: usdtAddress, onChange: (k, v) => {
                                     if (k === "sale") {
                                         setSaleAddress(v);
                                         localStorage.setItem("saleAddress", v);

@@ -4,29 +4,15 @@
 
 - 合约 `GNRToken`（ERC20 代币）
   - 查看总供应与用户余额（读取 `MAX_SUPPLY` 与 `balanceOf`）。源文件：`contracts/GNRToken.sol:7`
+  - 质押锁定模型（需求）：钱包余额可见但锁定部分不可转账；由质押合约调用 `lock/unlock`（接口在代币层实现）。
 - 合约 `GNRVault`（GNR 发放金库）
   - 展示金库余额（`balance()`）。源文件：`contracts/GNRVault.sol:19`
-  - 管理员角色：授予/撤销 `DISTRIBUTOR_ROLE`（通过前端调用金库合约和脚本均可）。函数参考：`contracts/GNRVault.sol:21`, `contracts/GNRVault.sol:27`
-  - 发放接口（仅演示权限与参数，不直接对用户开放调用）：`distribute`, `distributeBatch`。源文件：`contracts/GNRVault.sol:21`, `contracts/GNRVault.sol:27`
-- 合约 `GNRStakingSale`（售卖+质押+利息）
-  - 全局状态与参数展示：
-    - `saleActive` `kycEnabled` `userClaimEnabled` `allowWithdrawOnPause` `allowWithdrawWhenBlacklisted`（开关）。源文件：`contracts/GNRStakingSale.sol:27`-`contracts/GNRStakingSale.sol:31`
-    - 允许的质押周期与 APR/罚金：`getAllowedCycles`、`cycleParams`。函数参考：`contracts/GNRStakingSale.sol:136`, `contracts/GNRStakingSale.sol:37`
-    - 金库库存：`remainingInventory()`。函数参考：`contracts/GNRStakingSale.sol:138`
-  - 用户操作：
-    - 购买：`buy(usdtAmount)`（需 USDT 授权与余额）。函数参考：`contracts/GNRStakingSale.sol:140`
-    - 质押：`stake(amount, months)`（需 GNR 授权与余额）。函数参考：`contracts/GNRStakingSale.sol:155`
-    - 提现到期：`withdrawMature(stakeId)`。函数参考：`contracts/GNRStakingSale.sol:181`
-    - 早退：`earlyExit(stakeId)`。函数参考：`contracts/GNRStakingSale.sol:193`
-    - 查询与展示：`listUserStakes`、`claimableInterest(stakeId)`、`summaryGlobal`、`summaryByCycle`。函数参考：`contracts/GNRStakingSale.sol:251`, `contracts/GNRStakingSale.sol:206`, `contracts/GNRStakingSale.sol:324`, `contracts/GNRStakingSale.sol:317`
-    - 用户领利息（开启时）：`userClaimRewards(stakeId)`。函数参考：`contracts/GNRStakingSale.sol:220`
-  - 管理员操作：
-    - 开关设置：`setSaleActive`、`setKycEnabled`、`setUserClaimEnabled`、`setWithdrawFlags`。函数参考：`contracts/GNRStakingSale.sol:85`-`contracts/GNRStakingSale.sol:88`
-    - 白名单/黑名单：`addWhitelist` `removeWhitelist` `addBlacklist` `removeBlacklist`。函数参考：`contracts/GNRStakingSale.sol:103`-`contracts/GNRStakingSale.sol:106`
-    - 质押周期：`addCycle`、`updateCycle`、`removeCycle`。函数参考：`contracts/GNRStakingSale.sol:108`, `contracts/GNRStakingSale.sol:116`, `contracts/GNRStakingSale.sol:123`
-    - 项目钱包：`setProjectWallet`。函数参考：`contracts/GNRStakingSale.sol:79`
-    - 暂停/恢复：`pause` / `unpause`。函数参考：`contracts/GNRStakingSale.sol:100`
-    - USDT 资金管理：`adminDepositUSDT`、批量支付利息 `adminPayRewardsBatch`。函数参考：`contracts/GNRStakingSale.sol:232`, `contracts/GNRStakingSale.sol:237`
+  - 管理员角色：授予/撤销 `DISTRIBUTOR_ROLE`。函数参考：`contracts/GNRVault.sol:21`, `contracts/GNRVault.sol:27`
+  - 发放接口：`distribute`, `distributeBatch`（用于集中发奖）。源文件：`contracts/GNRVault.sol:21`, `contracts/GNRVault.sol:27`
+- 合约 `GNRStakingSale`（售卖+质押）
+  - 全局状态与参数展示：`saleActive`、`kycEnabled`、金库库存 `remainingInventory()`。
+  - 用户操作（需求）：购买 `buy(usdtAmount)`、质押锁定 `stake(amount)`（不选周期）、取消质押 `cancelStake(stakeId)`（随时取消、无罚金）、查询 `listUserStakes`；固定 `APR(BP)` 参数，利息单位 `GNR`，仅视图展示。
+  - 管理员操作（需求）：开关与名单管理；导出质押列表；通过金库批量发奖 `distributeBatch`（发奖金额由项目方输入）。
 
 ## 2. 页面设计（为演示顺利）
 
@@ -35,17 +21,17 @@
   - 网络通过钱包注入（Metamask），仅演示链上已部署合约。
 - 页面结构（四个页签）：
   - 总览 Dashboard
-    - 展示：库存（`remainingInventory`）、允许周期与 APR/罚金（`getAllowedCycles`+`cycleParams`）、全局汇总（`summaryGlobal`），并按周期展示 `summaryByCycle`。
+    - 展示：库存（`remainingInventory`）、全量质押概览（活跃数量/总锁定）、基础风控开关状态。
   - 用户交互 User
     - 购买区：输入 USDT 数量 → 执行 `approve(USDT→Sale)` → `buy`。
-    - 质押区：输入 GNR 数量、选择周期 → `approve(GNR→Sale)` → `stake`。
-    - 我的质押：`listUserStakes` 展示状态、到期时间、可领取利息（`claimableInterest`）。
-    - 操作按钮：到期提现 `withdrawMature`、早退 `earlyExit`、用户领息 `userClaimRewards`（当 `userClaimEnabled` 为 true）。
+    - 质押区：输入 GNR 数量 → `approve(GNR→Sale)` → `stake`（锁定，无周期）。
+    - 我的质押：`listUserStakes` 展示锁定金额、开始时间、当前状态与可视利息（GNR）。
+    - 操作按钮：取消质押 `cancelStake`（随时取消、无罚金）。
   - 管理 Admin（仅当连接账户为合约 `owner` 时显示）
-    - 全局开关：`setSaleActive`、`setKycEnabled`、`setUserClaimEnabled`、`setWithdrawFlags`。
+    - 全局开关：`setSaleActive`、`setKycEnabled`。
     - 名单管理：白名单/黑名单增删。
-    - 周期管理：新增/更新/删除（删除需确保无活跃同周期质押）。
-    - 资金管理：`adminDepositUSDT` 金额输入；批量支付利息 `adminPayRewardsBatch`（可通过筛选条件构建 stakeId 列表，或手动输入）。
+    - 导出质押列表：按筛选条件导出 CSV。
+    - 批量发奖：读取 CSV（地址+金额）→ 通过金库 `distributeBatch` 发奖。
     - 项目钱包变更：`setProjectWallet`。
     - 暂停与恢复：`pause`/`unpause`。
   - 金库 Vault
@@ -64,9 +50,9 @@
 ## 4. 实施计划（里程碑）
 
 - M1：搭建 `demo` 工程骨架（Vite + React + TS），建立地址输入与钱包连接模块。
-- M2：完成读取页（Dashboard）：库存、周期、汇总与用户质押列表展示。
-- M3：用户操作流：`buy`、`stake`、`withdrawMature`、`earlyExit`、`userClaimRewards`；包含 `approve` 引导与错误提示。
-- M4：管理员面板：开关、名单、周期管理、USDT 资金管理、暂停/恢复、项目钱包变更。
+- M2：完成读取页（Dashboard）：库存、全量质押概览与风控开关展示。
+- M3：用户操作流：`buy`、`stake`（锁定）、`cancelStake`；包含 `approve` 引导与错误提示。
+- M4：管理员面板：开关、名单管理、导出质押列表、批量发奖（金库）。
 - M5：金库面板：余额展示与角色管理（grant/revoke）。
 - M6：联调与演示脚本：提供本地/测试网地址配置模板与一键演示说明。
 
@@ -80,13 +66,8 @@
 ## 6. 合约功能引用（便于开发联调）
 
 - 购买：`contracts/GNRStakingSale.sol:140`
-- 质押：`contracts/GNRStakingSale.sol:155`
-- 到期提现：`contracts/GNRStakingSale.sol:181`
-- 早退：`contracts/GNRStakingSale.sol:193`
-- 用户领利息：`contracts/GNRStakingSale.sol:220`
-- 批量支付利息（管理员）：`contracts/GNRStakingSale.sol:237`
-- USDT 充值（管理员）：`contracts/GNRStakingSale.sol:232`
-- 周期管理：新增 `contracts/GNRStakingSale.sol:108`、更新 `contracts/GNRStakingSale.sol:116`、删除 `contracts/GNRStakingSale.sol:123`
+- 质押（锁定）：`contracts/GNRStakingSale.sol:155`（需求将改为锁定模型）
+- 取消质押：`cancelStake(stakeId)`（需求新增，随时取消、无罚金）
 - 白/黑名单：`contracts/GNRStakingSale.sol:103`-`contracts/GNRStakingSale.sol:106`
 - 开关设置：`contracts/GNRStakingSale.sol:85`-`contracts/GNRStakingSale.sol:88`
 - 暂停/恢复：`contracts/GNRStakingSale.sol:100`
