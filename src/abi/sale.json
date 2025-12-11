@@ -2,6 +2,8 @@
   {"type":"function","name":"owner","inputs":[],"outputs":[{"type":"address"}],"stateMutability":"view"},
   {"type":"function","name":"saleActive","inputs":[],"outputs":[{"type":"bool"}],"stateMutability":"view"},
   {"type":"function","name":"kycEnabled","inputs":[],"outputs":[{"type":"bool"}],"stateMutability":"view"},
+  {"type":"function","name":"whitelist","inputs":[{"name":"user","type":"address"}],"outputs":[{"type":"bool"}],"stateMutability":"view"},
+  {"type":"function","name":"blacklist","inputs":[{"name":"user","type":"address"}],"outputs":[{"type":"bool"}],"stateMutability":"view"},
   {"type":"function","name":"userClaimEnabled","inputs":[],"outputs":[{"type":"bool"}],"stateMutability":"view"},
   {"type":"function","name":"allowWithdrawOnPause","inputs":[],"outputs":[{"type":"bool"}],"stateMutability":"view"},
   {"type":"function","name":"allowWithdrawWhenBlacklisted","inputs":[],"outputs":[{"type":"bool"}],"stateMutability":"view"},

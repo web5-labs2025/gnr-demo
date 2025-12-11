@@ -138,6 +138,8 @@ export default function UserPage({ provider, signer, address, saleAddress, gnrAd
     const amt = parseAmount(faucetUsdtAmt);
     if (!amt) { message.error("金额无效，示例：1000000=1 USDT"); return; }
     try {
+      const balNative = await provider!.getBalance(address);
+      if (balNative === 0n) { message.error("当前网络原生币余额不足（需 tBNB 用于 Gas）"); return; }
       const mockUsdtAbi = [{ inputs: [{ internalType: "address", name: "to", type: "address" }, { internalType: "uint256", name: "amount", type: "uint256" }], name: "mint", outputs: [], stateMutability: "nonpayable", type: "function" }];
       const usdt = new ethers.Contract(usdtAddress, mockUsdtAbi, signer!);
       const hide = message.loading({ content: "领取USDT中...", duration: 0 });
@@ -147,7 +149,11 @@ export default function UserPage({ provider, signer, address, saleAddress, gnrAd
       hide();
       message.success(url ? <a href={url} target="_blank" rel="noreferrer">领取USDT成功，查看交易</a> : "领取USDT成功");
       await reload();
-    } catch (e: any) { message.error(e?.message || "领取USDT失败"); }
+    } catch (e: any) {
+      const msg = String(e?.message || "");
+      if (msg.includes("Internal JSON-RPC error") || msg.includes("UNKNOWN_ERROR")) { message.error("交易提交失败：请确认 BSC 测试网账户有足够 tBNB 支付 Gas"); return; }
+      message.error(e?.message || "领取USDT失败");
+    }
   }
   async function onFaucetGNR() {
     if (!ready || !faucetGnrAmt) { message.warning("请连接钱包并输入GNR最小单位数量（18位精度）"); return; }
@@ -155,6 +161,8 @@ export default function UserPage({ provider, signer, address, saleAddress, gnrAd
     const gnrWant = parseAmount(faucetGnrAmt);
     if (!gnrWant) { message.error("金额无效，示例：1000000000000000000=1 GNR"); return; }
     try {
+      const balNative = await provider!.getBalance(address);
+      if (balNative === 0n) { message.error("当前网络原生币余额不足（需 tBNB 用于 Gas）"); return; }
       const sale = new ethers.Contract(saleAddress, saleAbi, signer!);
       const sa = await sale.saleActive(); if (!sa) { message.error("购买未开启"); return; }
       const ke = await sale.kycEnabled(); if (ke) { const wl = await sale.whitelist(address); if (!wl) { message.error("需在白名单后才能领取GNR"); return; } }
@@ -173,7 +181,11 @@ export default function UserPage({ provider, signer, address, saleAddress, gnrAd
       hide();
       message.success(url ? <a href={url} target="_blank" rel="noreferrer">领取GNR成功，查看交易</a> : "领取GNR成功");
       await reload();
-    } catch (e: any) { message.error(e?.message || "领取GNR失败"); }
+    } catch (e: any) {
+      const msg = String(e?.message || "");
+      if (msg.includes("Internal JSON-RPC error") || msg.includes("UNKNOWN_ERROR")) { message.error("交易提交失败：请确认 BSC 测试网账户有足够 tBNB 支付 Gas"); return; }
+      message.error(e?.message || "领取GNR失败");
+    }
   }
   return (
     <div>

@@ -1,0 +1,26 @@
+
+**BSC 测试网部署**
+- 成功部署到 `bscTestnet`，并自动设置 APR、授权角色与 MockUSDT
+- 地址
+  - `GNRToken`: `0x1A00EaCC9206C50D50AdA9c4C864C5B20b8ef8E5`
+  - `GNRVault`: `0xCdFa904D4E72a16E2141b3f8e5fF24d1876350EB`
+  - `GNRStakingSale`: `0x97eC496eF14CC2cdEbE6Ff7fDdBB52A1CE11EA7a`
+  - `MockUSDT`: `0x62aFDD110bebA849A84cDADfd1386e0a12f0679C`
+- 已回填 `.env` 中的地址：
+  - `SALE_ADDRESS=0x97eC496eF14CC2cdEbE6Ff7fDdBB52A1CE11EA7a`
+  - `VAULT_ADDRESS=0xCdFa904D4E72a16E2141b3f8e5fF24d1876350EB`
+  - `GNR_ADDRESS=0x1A00EaCC9206C50D50AdA9c4C864C5B20b8ef8E5`
+
+**Demo 环境更新**
+- 已更新 `demo/.env` 对应 BSC 测试网地址与链 ID
+  - `VITE_SALE_ADDRESS=0x97eC496eF14CC2cdEbE6Ff7fDdBB52A1CE11EA7a`
+  - `VITE_VAULT_ADDRESS=0xCdFa904D4E72a16E2141b3f8e5fF24d1876350EB`
+  - `VITE_GNR_ADDRESS=0x1A00EaCC9206C50D50AdA9c4C864C5B20b8ef8E5`
+  - `VITE_USDT_ADDRESS=0x62aFDD110bebA849A84cDADfd1386e0a12f0679C`
+  - `VITE_TARGET_CHAIN_ID=97`
+
+**验证与提示**
+- BSC 检查脚本输出：`scripts/check.sale.ts`（bscTestnet）
+  - `hasRole: true`、`saleActive: true`、`kycEnabled: false`、`usdtBalance: '0'`、`usdtAllowanceToSale: '0'`
+- 前端启动提示会在链 ID 不匹配或 `Sale` 未部署时显示错误；更新为链 ID 97 后，连接 BSC 测试网应显示正常
+ 
