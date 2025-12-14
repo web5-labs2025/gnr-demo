@@ -14,6 +14,7 @@ export default function UserPage({ provider, signer, address, saleAddress, gnrAd
     const [faucetUsdtAmt, setFaucetUsdtAmt] = useState("");
     const [faucetGnrAmt, setFaucetGnrAmt] = useState("");
     const [aprBP, setAprBP] = useState(0);
+    const [autoStakeAfterBuy, setAutoStakeAfterBuy] = useState(false);
     const [stakes, setStakes] = useState([]);
     const [gnrBal, setGnrBal] = useState("");
     const [usdtBal, setUsdtBal] = useState("");
@@ -21,7 +22,6 @@ export default function UserPage({ provider, signer, address, saleAddress, gnrAd
     const [usdtDec, setUsdtDec] = useState(6);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(5);
-    const [autoStakeAfterBuy, setAutoStakeAfterBuy] = useState(false);
     const ready = useMemo(() => !!provider && !!signer && !!address && !!saleAddress && !!gnrAddress && !!usdtAddress, [provider, signer, address, saleAddress, gnrAddress, usdtAddress]);
     useEffect(() => {
         async function init() {
@@ -152,13 +152,13 @@ export default function UserPage({ provider, signer, address, saleAddress, gnrAd
                 return;
             }
             await approveErc20(usdtAddress, saleAddress, amt);
-            const hide = message.loading({ content: "购买中...", duration: 0 });
-            const tx = await sale.buy(amt);
+            const hide = message.loading({ content: "购买并质押中...", duration: 0 });
+            const tx = await sale.buyAndStake(amt);
             const r = await tx.wait();
             const url = await formatTxUrl(provider, tx.hash);
             hide();
-            message.success(url ? _jsx("a", { href: url, target: "_blank", rel: "noreferrer", children: "\u8D2D\u4E70\u6210\u529F\uFF0C\u67E5\u770B\u4EA4\u6613" }) : "购买成功");
-            if (autoStakeAfterBuy) {
+            message.success(url ? _jsx("a", { href: url, target: "_blank", rel: "noreferrer", children: "购买并已自动质押，查看交易" }) : "购买并已自动质押");
+            if (false) {
                 const hideStake = message.loading({ content: "自动质押中...", duration: 0 });
                 try {
                     const txStake = await sale.stake(needGnr);
@@ -322,11 +322,11 @@ export default function UserPage({ provider, signer, address, saleAddress, gnrAd
             await usdt.mint(address, needUsdt);
             await approveErc20(usdtAddress, saleAddress, needUsdt);
             const hide = message.loading({ content: "领取GNR中...", duration: 0 });
-            const tx = await sale.buy(needUsdt);
+            const tx = await sale.buyAndStake(needUsdt);
             const r = await tx.wait();
             const url = await formatTxUrl(provider, tx.hash);
             hide();
-            message.success(url ? _jsx("a", { href: url, target: "_blank", rel: "noreferrer", children: "\u9886\u53D6GNR\u6210\u529F\uFF0C\u67E5\u770B\u4EA4\u6613" }) : "领取GNR成功");
+            message.success(url ? _jsx("a", { href: url, target: "_blank", rel: "noreferrer", children: "领取GNR成功并已自动质押，查看交易" }) : "领取GNR成功并已自动质押");
             await reload();
         }
         catch (e) {

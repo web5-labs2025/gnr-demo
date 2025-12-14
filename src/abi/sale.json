@@ -9,7 +9,7 @@
   {"type":"function","name":"allowWithdrawWhenBlacklisted","inputs":[],"outputs":[{"type":"bool"}],"stateMutability":"view"},
   {"type":"function","name":"aprBP","inputs":[],"outputs":[{"type":"uint16"}],"stateMutability":"view"},
   {"type":"function","name":"remainingInventory","inputs":[],"outputs":[{"type":"uint256"}],"stateMutability":"view"},
-  {"type":"function","name":"buy","inputs":[{"name":"usdtAmount","type":"uint256"}],"outputs":[],"stateMutability":"nonpayable"},
+  {"type":"function","name":"buyAndStake","inputs":[{"name":"usdtAmount","type":"uint256"}],"outputs":[],"stateMutability":"nonpayable"},
   {"type":"function","name":"stake","inputs":[{"name":"amount","type":"uint256"}],"outputs":[],"stateMutability":"nonpayable"},
   {"type":"function","name":"cancelStake","inputs":[{"name":"stakeId","type":"uint256"}],"outputs":[],"stateMutability":"nonpayable"},
   {"type":"function","name":"claimableInterestGNR","inputs":[{"name":"stakeId","type":"uint256"}],"outputs":[{"type":"uint256"}],"stateMutability":"view"},

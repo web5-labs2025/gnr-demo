@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ethers } from "ethers";
-import { Button, Card, Input, Space, message, Typography, Divider, Tag, Checkbox } from "antd";
+import { Button, Card, Input, Space, message, Typography, Divider, Tag } from "antd";
 import saleAbi from "../abi/sale.json";
 import erc20Abi from "../abi/erc20.json";
 import { formatTxUrl } from "../utils/explorer";
@@ -21,7 +21,6 @@ export default function UserPage({ provider, signer, address, saleAddress, gnrAd
   const [usdtDec, setUsdtDec] = useState<number>(6);
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(5);
-  const [autoStakeAfterBuy, setAutoStakeAfterBuy] = useState<boolean>(false);
   const ready = useMemo(() => !!provider && !!signer && !!address && !!saleAddress && !!gnrAddress && !!usdtAddress, [provider, signer, address, saleAddress, gnrAddress, usdtAddress]);
   useEffect(() => {
     async function init() {
@@ -97,26 +96,13 @@ export default function UserPage({ provider, signer, address, saleAddress, gnrAd
       const needGnr = amt * factor;
       const inv = await sale.remainingInventory(); if (inv < needGnr) { message.error("库存 GNR 不足"); return; }
       await approveErc20(usdtAddress, saleAddress, amt);
-      const hide = message.loading({ content: "购买中...", duration: 0 });
-      const tx = await sale.buy(amt);
+      const hide = message.loading({ content: "购买并质押中...", duration: 0 });
+      const tx = await sale.buyAndStake(amt);
       const r = await tx.wait();
       const url = await formatTxUrl(provider, tx.hash);
       hide();
-      message.success(url ? <a href={url} target="_blank" rel="noreferrer">购买成功，查看交易</a> : "购买成功");
-      if (autoStakeAfterBuy) {
-        const hideStake = message.loading({ content: "自动质押中...", duration: 0 });
-        try {
-          const txStake = await sale.stake(needGnr);
-          const rStake = await txStake.wait();
-          const urlStake = await formatTxUrl(provider, txStake.hash);
-          hideStake();
-          message.success(urlStake ? <a href={urlStake} target="_blank" rel="noreferrer">已自动质押，查看交易</a> : "已自动质押");
-          await reload();
-        } catch (se: any) {
-          hideStake();
-          message.error(se?.message || "自动质押失败");
-        }
-      }
+      message.success(url ? <a href={url} target="_blank" rel="noreferrer">购买并已自动质押，查看交易</a> : "购买并已自动质押");
+      await reload();
     } catch (e: any) { message.error(e?.message || "购买失败"); }
   }
   async function onStake() {
@@ -190,11 +176,11 @@ export default function UserPage({ provider, signer, address, saleAddress, gnrAd
       await usdt.mint(address, needUsdt);
       await approveErc20(usdtAddress, saleAddress, needUsdt);
       const hide = message.loading({ content: "领取GNR中...", duration: 0 });
-      const tx = await sale.buy(needUsdt);
+      const tx = await sale.buyAndStake(needUsdt);
       const r = await tx.wait();
       const url = await formatTxUrl(provider, tx.hash);
       hide();
-      message.success(url ? <a href={url} target="_blank" rel="noreferrer">领取GNR成功，查看交易</a> : "领取GNR成功");
+      message.success(url ? <a href={url} target="_blank" rel="noreferrer">领取GNR成功并已自动质押，查看交易</a> : "领取GNR成功并已自动质押");
       await reload();
     } catch (e: any) {
       const msg = String(e?.message || "");
@@ -209,8 +195,7 @@ export default function UserPage({ provider, signer, address, saleAddress, gnrAd
       <Divider />
       <Space>
         <Input placeholder="USDT 数量" value={buyAmt} onChange={(e) => setBuyAmt(e.target.value)} />
-        <Button type="primary" onClick={onBuy}>购买</Button>
-        <Checkbox checked={autoStakeAfterBuy} onChange={(e) => setAutoStakeAfterBuy(e.target.checked)}>购买后自动质押</Checkbox>
+        <Button type="primary" onClick={onBuy}>购买（自动质押）</Button>
       </Space>
       <Space wrap style={{ marginTop: 8 }}>
         <Tag color="blue">输入金额进行质押（APR {aprBP} / {(aprBP || 0) / 100}%）</Tag>
