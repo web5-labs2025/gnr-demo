@@ -126,7 +126,7 @@ export default function AdminPage({ provider, signer, address, saleAddress }: { 
         <Typography.Paragraph type="secondary">奖励由第三方代发工具线下发放；本页不提供链上发奖操作。</Typography.Paragraph>
         <Space>
           <Input placeholder="状态(0活跃/1已取消)" value={queryStatus} onChange={(e) => setQueryStatus(e.target.value)} />
-          <Button onClick={async () => { const st = parseUint(queryStatus); if (st === null || st < 0 || st > 1) { message.error("状态无效"); return; } const sale = new ethers.Contract(saleAddress, saleAbi, signer!); const res = await sale.listStakesByStatus(st, 0, 100); setStatusIds(res[1]); message.success(`获取 ${res[1].length} 条`); }}>按状态查询</Button>
+          <Button onClick={async () => { const st = parseUint(queryStatus); if (st === null || st < 0 || st > 1) { message.error("状态无效"); return; } const sale = new ethers.Contract(saleAddress, saleAbi, signer!); const res = await sale.listStakesByStatusCursor(st, 0, 100, 1000); setStatusIds(res[1]); message.success(`获取 ${res[1].length} 条`); }}>按状态查询</Button>
           <Button onClick={() => { if (!statusIds.length) { message.error("无数据"); return; } exportCsv("stakes-by-status.csv", [["id"], ...statusIds.map((x) => [x.toString()])]); }}>导出CSV</Button>
         </Space>
         <Space style={{ marginTop: 8 }}>
@@ -139,7 +139,7 @@ export default function AdminPage({ provider, signer, address, saleAddress }: { 
         <Space>
           <Input placeholder="开始时间戳" value={timeStart} onChange={(e) => setTimeStart(e.target.value)} />
           <Input placeholder="结束时间戳" value={timeEnd} onChange={(e) => setTimeEnd(e.target.value)} />
-          <Button onClick={async () => { const ts = parseUint(timeStart) ?? 0; const te = parseUint(timeEnd) ?? Math.floor(Date.now() / 1000); if (ts < 0 || te <= 0 || ts > te) { message.error("时间范围无效"); return; } const sale = new ethers.Contract(saleAddress, saleAbi, signer!); const res = await sale.listStakesByTime(ts, te, 0, 100); setTimeIds(res[1]); message.success(`获取 ${res[1].length} 条`); }}>按时间查询</Button>
+          <Button onClick={async () => { const ts = parseUint(timeStart) ?? 0; const te = parseUint(timeEnd) ?? Math.floor(Date.now() / 1000); if (ts < 0 || te <= 0 || ts > te) { message.error("时间范围无效"); return; } const sale = new ethers.Contract(saleAddress, saleAbi, signer!); const res = await sale.listStakesByTimeCursor(ts, te, 0, 100, 1000); setTimeIds(res[1]); message.success(`获取 ${res[1].length} 条`); }}>按时间查询</Button>
           <Button onClick={() => { if (!timeIds.length) { message.error("无数据"); return; } exportCsv("stakes-by-time.csv", [["id"], ...timeIds.map((x) => [x.toString()])]); }}>导出CSV</Button>
         </Space>
         <Space style={{ marginTop: 8 }}>

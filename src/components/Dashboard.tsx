@@ -60,8 +60,18 @@ export default function Dashboard({ provider, saleAddress, gnrAddress }: { provi
       setAllowWhenBlacklisted(Boolean(ab));
       const apr = await sale.aprBP();
       setAprBP(Number(apr));
-      const g = await sale.summaryGlobal();
-      setGlobal({ count: g[0].toString(), locked: g[1].toString(), claimableGnr: g[2].toString() });
+      const totals = await sale.summaryTotals();
+      let offset: bigint = 0n;
+      let lockedPartial: bigint = 0n;
+      let claimablePartial: bigint = 0n;
+      for (let i = 0; i < 50; i++) { // 最多迭代 50 次，每次扫描上限由合约侧限制
+        const res = await sale.summaryGlobalCursor(offset, 1000);
+        lockedPartial += BigInt(res[1]);
+        claimablePartial += BigInt(res[2]);
+        offset = BigInt(res[3]);
+        if (offset === BigInt(res[0])) break;
+      }
+      setGlobal({ count: totals[0].toString(), locked: totals[1].toString(), claimableGnr: claimablePartial.toString() });
       if (isValidAddress(gnrAddress)) {
         const gnrCode = await rpc.getCode(gnrAddress);
         if (!gnrCode || gnrCode === "0x") {
